@@ -6,6 +6,7 @@
  * Run: npm run db:setup   (push schema + seed)
  * Note: stop `next dev` first when using local PGlite — single-process lock.
  */
+import "dotenv/config";
 import { db } from "../src/db";
 import { users, employees, compensation, teams, teamMemberships, auditLogs } from "../src/db/schema";
 import { sql } from "drizzle-orm";
