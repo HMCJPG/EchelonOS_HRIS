@@ -4,8 +4,8 @@ import type { NextFetchEvent } from "next/server";
 const PUBLIC = ["/login", "/dev-login", "/callback"];
 
 // WorkOS AuthKit middleware when configured; otherwise a cookie-presence check
-// for the local dev-auth mode. No DB access here (edge runtime).
-export default async function middleware(req: NextRequest, event: NextFetchEvent) {
+// for the local dev-auth mode. No DB access here — proxy runs before the app.
+export default async function proxy(req: NextRequest, event: NextFetchEvent) {
   if (process.env.WORKOS_API_KEY && process.env.WORKOS_CLIENT_ID) {
     const { authkitMiddleware } = await import("@workos-inc/authkit-nextjs");
     return authkitMiddleware({
