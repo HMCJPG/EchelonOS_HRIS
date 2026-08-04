@@ -10,7 +10,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import {
   Table,
   TableBody,
@@ -32,11 +32,6 @@ export type DirectoryTableRow = {
   salary: number | null;
 };
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = {
-  active: "default",
-  on_leave: "secondary",
-  terminated: "destructive",
-};
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
@@ -63,7 +58,7 @@ export function DirectoryTable({ rows, showSalary }: { rows: DirectoryTableRow[]
         header: "Status",
         cell: ({ getValue }) => {
           const s = String(getValue());
-          return <Badge variant={STATUS_VARIANT[s] ?? "secondary"}>{s.replace("_", " ")}</Badge>;
+          return <StatusBadge status={s} />;
         },
       },
     ];

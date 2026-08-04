@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { getEmployee } from "@/repo/employees";
 import { deleteEmployeeAction } from "@/actions/employees";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDelete } from "@/components/confirm-delete";
@@ -33,7 +34,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
     ["Phone", emp.phone ?? "—"],
     ["Location", emp.location ?? "—"],
     ["Hire date", emp.hireDate ?? "—"],
-    ["Status", <Badge key="s">{emp.status.replace("_", " ")}</Badge>],
+    ["Status", <StatusBadge key="s" status={emp.status} />],
   ];
   if (emp.salaryVisible) {
     facts.push(["Salary", emp.salary != null ? usd.format(emp.salary) : "Not recorded"]);
