@@ -22,6 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(canImport(user) ? [{ href: "/import", label: "Import" }] : []),
     ...(canViewAudit(user) ? [{ href: "/audit", label: "Audit Log" }] : []),
     ...(canManageUsers(user) ? [{ href: "/users", label: "Users" }] : []),
+    { href: "/about", label: "About" },
   ];
 
   return (
