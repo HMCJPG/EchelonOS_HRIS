@@ -108,7 +108,6 @@ https://your-domain.com/callback
 
 Import the repository and configure the environment variables above.
 
-That's it.
 
 ### First User Bootstrap
 
