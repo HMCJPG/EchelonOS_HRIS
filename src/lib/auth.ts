@@ -64,6 +64,9 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
     const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(users);
     const emp = await db.query.employees.findFirst({ where: eq(employees.email, ident.email) });
     const role: Role = n === 0 ? "admin" : ident.devRole ?? "employee";
+    // Parallel first-request race: two RSC requests can both miss the lookup
+    // and insert. onConflictDoNothing + re-select makes the loser recover
+    // instead of surfacing a unique-violation error on first sign-in.
     [user] = await db
       .insert(users)
       .values({
@@ -73,7 +76,10 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
         role,
         employeeId: emp?.id ?? null,
       })
+      .onConflictDoNothing({ target: users.email })
       .returning();
+    user ??= await db.query.users.findFirst({ where: eq(users.email, ident.email) });
+    if (!user) return null;
   }
 
   // Dev-auth role switcher wins without persisting, so demoing RBAC is one dropdown.
