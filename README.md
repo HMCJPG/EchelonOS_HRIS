@@ -5,6 +5,29 @@ bulk CSV/Excel import with dry-run preview, CSV/Excel/PDF exports, a full audit 
 role-based access control — built with Next.js (App Router), Drizzle, Postgres (Neon),
 and WorkOS AuthKit.
 
+## Try it live
+
+**https://echelon-os-hris.vercel.app** — deployed on Vercel against Neon Postgres with
+WorkOS AuthKit (Google SSO or email), seeded with a 40-person demo org.
+
+What to expect when you sign in:
+
+- **New accounts start as read-only Viewer.** That's the RBAC working, not missing
+  features: you'll see the directory, teams, org chart, and search, but no edit
+  controls, and the Import/Audit/Users pages stay hidden. The in-app **About** tab
+  shows the full role matrix.
+- **Want edit access?** An Admin promotes accounts on the **Users** page (takes
+  effect on your next page load). Reviewers: ask and you'll be promoted, or see
+  [granting reviewer access](#granting-reviewer-access) to pre-provision a role
+  before first sign-in.
+- The org chart's drag-to-reparent, bulk import dry-run, filtered exports, and the
+  audit log are the features worth a minute each — all reachable from the top nav
+  once you have the role for them.
+
+| Directory | Org chart |
+|---|---|
+| ![Employee directory](docs/screenshots/directory.png) | ![Org chart](docs/screenshots/org-chart.png) |
+
 ## Quick start (local, zero setup)
 
 ```bash
@@ -33,6 +56,20 @@ npm run typecheck
 
 **First-login bootstrap:** the first user ever to sign in becomes Admin. Everyone after
 starts as read-only Viewer until an Admin promotes them on the **Users** page.
+
+### Granting reviewer access
+
+New sign-ins default to Viewer by design — unknown accounts never get edit rights. To
+hand a reviewer a specific role before they ever sign in, pre-provision their email
+(the sign-in flow links to an existing `users` row by email):
+
+```sql
+INSERT INTO users (email, role) VALUES ('reviewer@example.com', 'hr');
+```
+
+`hr` demos nearly everything (add/edit employees, bulk import, exports, audit log)
+without Admin's delete buttons and user management. Already signed in? An Admin can
+change their role live on the **Users** page instead.
 
 ## RBAC model
 
