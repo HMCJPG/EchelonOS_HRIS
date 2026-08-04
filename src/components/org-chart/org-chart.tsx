@@ -230,6 +230,9 @@ function Chart({ data }: { data: OrgNode[] }) {
         edgesFocusable={false}
         proOptions={{ hideAttribution: true }}
         fitView
+        // Cap the initial zoom so the top of the tree opens legible instead of
+        // shrinking all 40 cards into view; the minimap covers the rest.
+        fitViewOptions={{ maxZoom: 0.85, padding: 0.1 }}
         minZoom={0.1}
       >
         <Background />
@@ -242,7 +245,7 @@ function Chart({ data }: { data: OrgNode[] }) {
           ones you can move). Cycles are rejected. Use the buttons on cards to expand/collapse.
         </p>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => fitView()}>
+          <Button variant="outline" size="sm" onClick={() => fitView({ maxZoom: 0.85, padding: 0.1 })}>
             Fit view
           </Button>
           <Button variant="outline" size="sm" onClick={exportPdf}>
