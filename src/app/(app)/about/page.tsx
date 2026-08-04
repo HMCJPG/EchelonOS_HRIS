@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -12,64 +11,104 @@ import {
 export const metadata = { title: "About — Echelon HRIS" };
 
 const STACK = [
-  ["Next.js (App Router)", "Server components + server actions; one deployable unit on Vercel."],
-  ["Postgres (Neon)", "Serverless driver over WebSocket — the HTTP driver lacks transactions, and import/audit correctness depends on them."],
-  ["Drizzle ORM", "The core query here is a recursive CTE; Drizzle keeps raw SQL first-class with no engine binary to fight on serverless."],
-  ["WorkOS AuthKit", "B2B-native auth (SSO/SCIM-ready), matching an HRIS buyer. Roles live in our DB, not IdP claims — manager permissions derive from the org graph."],
-  ["React Flow + d3-hierarchy", "Pan/zoom/drag org chart with Reingold–Tilford layout; reparenting is drop-on-card with optimistic update and server-checked cycle rejection."],
-] as const;
-
-const DECISIONS = [
   {
-    title: "users vs employees are separate tables",
-    body: "Auth principals and HR records are different things: real HRISes have employees who never log in and users who aren't employees (auditors, analysts). Linked by email; collapsing them is the expensive-to-undo mistake.",
+    name: "Next.js (App Router)",
+    body: "The entire application lives in a single Next.js codebase using Server Components and Server Actions.",
   },
   {
-    title: "Adjacency list + recursive CTEs for the hierarchy",
-    body: "Org charts are shallow and small; a recursive CTE over an indexed manager_id is sub-millisecond, and reparenting (drag-and-drop) is a single UPDATE. Cycle prevention runs inside the same transaction as every reparent, edit, and import.",
+    name: "Postgres (Neon)",
+    body: "Neon provides the backing database. I use the serverless WebSocket driver because imports, org-chart updates, and audit logging all depend on transaction support.",
   },
   {
-    title: "Salary lives in a separate compensation table",
-    body: "“Can this role see money” becomes a join decision instead of field-stripping. Field-stripping is where leaks happen — a new endpoint forgets one omit.",
+    name: "Drizzle ORM",
+    body: "Most of the application uses Drizzle directly. The org-chart functionality relies heavily on recursive SQL queries, and Drizzle makes it easy to drop down to raw SQL when needed.",
   },
   {
-    title: "Audit log written app-layer, same transaction as the mutation",
-    body: "A DB trigger can't know the actor, and SET LOCAL through a pooler is fragile. The repo layer is the only mutation path, so the discipline holds; the audit page is Admin/HR-gated because comp diffs live in it.",
+    name: "WorkOS AuthKit",
+    body: "Authentication is handled through WorkOS. Roles and permissions are stored in the application's database rather than the identity provider because manager access depends on the reporting hierarchy, which only exists inside the HRIS itself.",
   },
   {
-    title: "Authorization is one pure, unit-tested module enforced in the repo layer",
-    body: "The only code that touches the DB enforces the rules, so route handlers and actions can't forget a check that lives below them. Manager scope is derived per-request from the org chart, never cached in a session.",
-  },
-  {
-    title: "Bulk import: client dry-run, server re-validation, all-or-nothing commit",
-    body: "The client parses CSV/Excel for a preview; the server re-validates with the same Zod schemas and commits in one transaction. Managers are referenced by email and wired in a second pass, so row order never matters. A half-imported org chart is worse than a re-upload.",
-  },
-  {
-    title: "Exports share the directory's query builder",
-    body: "The export URL carries the same querystring as the filtered directory view — “customizable export filters” is one source of truth, not a second filter system. CSV columns match the import template, so an export re-imports cleanly.",
+    name: "React Flow + d3-hierarchy",
+    body: "The org chart is built with React Flow and d3-hierarchy. React Flow handles interactions such as dragging, zooming, and navigation. d3-hierarchy generates the layout for the reporting tree.",
   },
 ] as const;
 
 const RBAC: { cap: string; roles: [string, string, string, string] }[] = [
-  { cap: "View directory / teams / org chart", roles: ["✓", "✓", "✓", "✓"] },
-  { cap: "See salaries", roles: ["all", "all", "reports + self", "self only"] },
-  { cap: "Add / edit employees", roles: ["✓", "✓", "direct reports", "—"] },
+  { cap: "View directory, teams, org chart", roles: ["✓", "✓", "✓", "✓"] },
+  { cap: "View salaries", roles: ["All", "All", "Reports + Self", "Self"] },
+  { cap: "Add / edit employees", roles: ["✓", "✓", "Direct Reports", "—"] },
   { cap: "Delete employees", roles: ["✓", "—", "—", "—"] },
-  { cap: "Manage teams & membership", roles: ["✓", "✓", "—", "—"] },
-  { cap: "Bulk import / export", roles: ["✓", "✓", "—", "—"] },
-  { cap: "Audit log", roles: ["✓", "✓", "—", "—"] },
+  { cap: "Manage teams", roles: ["✓", "✓", "—", "—"] },
+  { cap: "Import / export data", roles: ["✓", "✓", "—", "—"] },
+  { cap: "Audit log access", roles: ["✓", "✓", "—", "—"] },
   { cap: "Manage users & roles", roles: ["✓", "—", "—", "—"] },
 ];
+
+const DECISIONS = [
+  {
+    title: "Users and Employees Are Separate",
+    body: "Users represent authenticated accounts. Employees represent HR records. Keeping them separate supports scenarios where someone exists in the HR system but never signs in, or where someone signs in but is not an employee.",
+  },
+  {
+    title: "Org Chart Structure",
+    body: "The reporting hierarchy is stored using a simple manager relationship (manager_id). Hierarchy queries use recursive CTEs, which keeps updates simple while still making subtree lookups and reporting-chain traversal efficient. Cycle detection runs whenever reporting relationships are modified so invalid hierarchies cannot be created.",
+  },
+  {
+    title: "Compensation Is Stored Separately",
+    body: "Salary information lives in a dedicated compensation table. This makes authorization simpler and reduces the risk of exposing compensation data through endpoints that should not have access to it.",
+  },
+  {
+    title: "Audit Logging",
+    body: "All mutations write audit entries inside the same database transaction as the underlying change. That guarantees the audit log and the actual data stay in sync.",
+  },
+  {
+    title: "Authorization",
+    body: "Authorization rules are centralized in a single module and enforced in the repository layer. Since all database operations flow through the repository layer, permission checks cannot be accidentally skipped by a route or server action.",
+  },
+  {
+    title: "Bulk Imports",
+    body: "Imports follow a two-step process: validate and preview on the client, then re-validate and commit on the server. Everything is committed in a single transaction. Manager relationships are resolved by email after records are loaded, so file ordering does not matter.",
+  },
+  {
+    title: "Exports",
+    body: "Exports reuse the same filtering logic as the employee directory. This ensures that exported data always matches the view currently shown in the application and avoids maintaining multiple filtering systems.",
+  },
+] as const;
+
+const LIMITATIONS = [
+  {
+    title: "Historical Reconstruction",
+    body: "The system stores current state plus an audit log. It does not currently support viewing the organization at an arbitrary point in time.",
+  },
+  {
+    title: "Import Limits",
+    body: "Imports are capped at 5,000 rows per file.",
+  },
+  {
+    title: "Org Chart PDF Export",
+    body: "The PDF export captures the current chart exactly as displayed, including zoom level and expansion state.",
+  },
+] as const;
 
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">About this system</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">About this System</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          A lightweight HRIS: employee & team directories, an interactive drag-and-drop org chart,
-          bulk import with dry-run preview, filtered CSV/Excel/PDF exports, an append-only audit
-          log, and role-based access control. This page summarizes the architecture; the{" "}
+          Echelon HRIS is a lightweight human resources platform built for managing employees,
+          teams, reporting structures, and permissions.
+        </p>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+          <li>Employee and team directories</li>
+          <li>Interactive drag-and-drop org chart</li>
+          <li>Bulk CSV/Excel imports with preview mode</li>
+          <li>CSV, Excel, and PDF exports</li>
+          <li>Audit logging</li>
+          <li>Role-based access control</li>
+        </ul>
+        <p className="mt-3 text-sm text-muted-foreground">
+          This page gives a high-level overview of how the system works. The{" "}
           <a
             className="underline underline-offset-2 hover:text-foreground"
             href="https://github.com/HMCJPG/EchelonOS_HRIS"
@@ -78,20 +117,19 @@ export default function AboutPage() {
           >
             README
           </a>{" "}
-          carries the full decision log.
+          contains a more detailed breakdown of implementation decisions and tradeoffs.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Stack</CardTitle>
-          <CardDescription>Each choice optimizes for serverless correctness over ceremony.</CardDescription>
+          <CardTitle>Tech Stack</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {STACK.map(([name, why]) => (
-            <div key={name} className="grid gap-1 sm:grid-cols-[220px_1fr] sm:gap-4">
-              <span className="text-sm font-medium">{name}</span>
-              <span className="text-sm text-muted-foreground">{why}</span>
+          {STACK.map((s) => (
+            <div key={s.name} className="grid gap-1 sm:grid-cols-[220px_1fr] sm:gap-4">
+              <span className="text-sm font-medium">{s.name}</span>
+              <span className="text-sm text-muted-foreground">{s.body}</span>
             </div>
           ))}
         </CardContent>
@@ -99,11 +137,8 @@ export default function AboutPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Role-based access control</CardTitle>
-          <CardDescription>
-            Your current role is shown in the header. New sign-ins start as read-only Viewer until
-            an Admin promotes them on the Users page — unknown accounts never get edit rights.
-          </CardDescription>
+          <CardTitle>Role-Based Access Control</CardTitle>
+          <CardDescription>Every user belongs to one of four roles.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -129,18 +164,22 @@ export default function AboutPage() {
               </TableBody>
             </Table>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            The Manager asymmetry is deliberate: <em>view</em> extends to the whole reporting
-            subtree, <em>edit</em> is direct reports only. Manager scope is derived per-request
-            from the org chart, never cached in the session.
-          </p>
+          <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <p>
+              New users are assigned the Viewer role by default and receive read-only access until
+              an Admin promotes them.
+            </p>
+            <p>
+              Manager permissions are intentionally limited. Managers can view their entire
+              reporting tree, but can only make changes to their direct reports.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Design decisions</CardTitle>
-          <CardDescription>What was chosen, and why — condensed from the README.</CardDescription>
+          <CardTitle>Architecture Decisions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {DECISIONS.map((d) => (
@@ -154,24 +193,15 @@ export default function AboutPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Known limitations</CardTitle>
-          <CardDescription>Deliberate scope cuts, each with a migration path.</CardDescription>
+          <CardTitle>Known Limitations</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>
-            <Badge variant="secondary" className="mr-2">history</Badge>
-            No point-in-time org reconstruction — current-state tables plus an append-only audit
-            log, not effective-dated versions. Path: promote audit rows to versioned records.
-          </p>
-          <p>
-            <Badge variant="secondary" className="mr-2">import</Badge>
-            Imports cap at 5,000 rows per file. Path: blob upload + queued job past ~10k rows.
-          </p>
-          <p>
-            <Badge variant="secondary" className="mr-2">export</Badge>
-            The org-chart PDF captures the current viewport and expansion state — it is a raster of
-            what you see.
-          </p>
+        <CardContent className="space-y-4">
+          {LIMITATIONS.map((l) => (
+            <div key={l.title}>
+              <p className="text-sm font-medium">{l.title}</p>
+              <p className="text-sm text-muted-foreground">{l.body}</p>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>
